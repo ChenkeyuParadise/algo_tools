@@ -54,7 +54,7 @@ for eachline in fin:
   #print("distance:", distance)
 
 #emb_output=np.array(dic_list)
-file_name="fund_mlr_n_newton_deep_qscore_vector.20180727.nick"
+file_name=""
 i_cnt=0
 with open(file_name,"r") as fin:
   for eachline in fin:
@@ -71,7 +71,7 @@ with open(file_name,"r") as fin:
     dic_list.append(vec_array)
     target_list.append(1)
 #emb_output=np.concate((emb_output, np.array()), axis=0);
-file_name="fund_mlr_n_newton_deep_qscore_vector.20180727.ad"
+file_name=""
 i_cnt=0
 with open(file_name,"r") as fin:
   for eachline in fin:
