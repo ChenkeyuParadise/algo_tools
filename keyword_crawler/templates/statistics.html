@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+
+{% block title %}数据统计 - 关键词爬虫工具{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">数据统计</h1>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <select class="form-select" onchange="changeDays(this.value)">
+            <option value="7" {% if days == 7 %}selected{% endif %}>最近7天</option>
+            <option value="30" {% if days == 30 %}selected{% endif %}>最近30天</option>
+            <option value="90" {% if days == 90 %}selected{% endif %}>最近90天</option>
+        </select>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5>任务统计</h5>
+            </div>
+            <div class="card-body">
+                <p>总任务数: {{ task_stats.total or 0 }}</p>
+                <p>成功任务: {{ task_stats.success or 0 }}</p>
+                <p>失败任务: {{ task_stats.failed or 0 }}</p>
+                <p>成功率: {{ task_stats.success_rate or 0 }}%</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5>搜索结果统计</h5>
+            </div>
+            <div class="card-body">
+                <p>总搜索结果: {{ results_stats.total or 0 }}</p>
+                <p>平均每天: {{ results_stats.daily_average or 0 }}</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function changeDays(days) {
+    window.location.href = '/statistics?days=' + days;
+}
+</script>
+{% endblock %}

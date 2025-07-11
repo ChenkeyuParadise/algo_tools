@@ -1,0 +1,104 @@
+{% extends "base.html" %}
+
+{% block title %}任务管理 - 关键词爬虫工具{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">任务管理</h1>
+</div>
+
+<div class="table-responsive">
+    <table class="table table-striped">
+        <thead>
+            <tr>
+                <th>任务ID</th>
+                <th>状态</th>
+                <th>下次执行</th>
+                <th>上次执行</th>
+                <th>操作</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for job in jobs %}
+            <tr>
+                <td>{{ job.id }}</td>
+                <td>
+                    {% if job.paused %}
+                        <span class="badge bg-warning">已暂停</span>
+                    {% else %}
+                        <span class="badge bg-success">运行中</span>
+                    {% endif %}
+                </td>
+                <td>{{ job.next_run_time or '未安排' }}</td>
+                <td>{{ job.last_run_time or '从未执行' }}</td>
+                <td>
+                    <div class="btn-group" role="group">
+                        <button class="btn btn-sm btn-primary" onclick="runTask('{{ job.id }}')">立即执行</button>
+                        {% if job.paused %}
+                            <button class="btn btn-sm btn-success" onclick="resumeTask('{{ job.id }}')">恢复</button>
+                        {% else %}
+                            <button class="btn btn-sm btn-warning" onclick="pauseTask('{{ job.id }}')">暂停</button>
+                        {% endif %}
+                    </div>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function runTask(taskId) {
+    if (confirm('确定要立即执行任务 ' + taskId + ' 吗？')) {
+        axios.post('/api/tasks/' + taskId + '/run')
+        .then(response => {
+            if (response.data.success) {
+                alert(response.data.message);
+                location.reload();
+            } else {
+                alert('操作失败: ' + response.data.message);
+            }
+        })
+        .catch(error => {
+            alert('请求失败: ' + error.message);
+        });
+    }
+}
+
+function pauseTask(taskId) {
+    if (confirm('确定要暂停任务 ' + taskId + ' 吗？')) {
+        axios.post('/api/tasks/' + taskId + '/pause')
+        .then(response => {
+            if (response.data.success) {
+                alert(response.data.message);
+                location.reload();
+            } else {
+                alert('操作失败: ' + response.data.message);
+            }
+        })
+        .catch(error => {
+            alert('请求失败: ' + error.message);
+        });
+    }
+}
+
+function resumeTask(taskId) {
+    if (confirm('确定要恢复任务 ' + taskId + ' 吗？')) {
+        axios.post('/api/tasks/' + taskId + '/resume')
+        .then(response => {
+            if (response.data.success) {
+                alert(response.data.message);
+                location.reload();
+            } else {
+                alert('操作失败: ' + response.data.message);
+            }
+        })
+        .catch(error => {
+            alert('请求失败: ' + error.message);
+        });
+    }
+}
+</script>
+{% endblock %}

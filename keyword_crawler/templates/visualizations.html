@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+
+{% block title %}数据可视化 - 关键词爬虫工具{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">数据可视化</h1>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <button type="button" class="btn btn-primary" onclick="generateCharts()">
+            <i class="bi bi-graph-up"></i> 生成图表
+        </button>
+    </div>
+</div>
+
+<div id="chartsContainer">
+    <p class="text-muted">点击"生成图表"按钮来创建可视化图表</p>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function generateCharts() {
+    axios.get('/api/generate_charts?days={{ days or 7 }}')
+    .then(response => {
+        if (response.data.success) {
+            alert(response.data.message);
+            // 这里可以添加显示图表的逻辑
+        } else {
+            alert('生成失败: ' + response.data.message);
+        }
+    })
+    .catch(error => {
+        alert('请求失败: ' + error.message);
+    });
+}
+</script>
+{% endblock %}

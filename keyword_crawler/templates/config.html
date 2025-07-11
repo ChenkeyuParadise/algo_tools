@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+
+{% block title %}配置 - 关键词爬虫工具{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">系统配置</h1>
+</div>
+
+<div class="row">
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h5>搜索引擎</h5>
+            </div>
+            <div class="card-body">
+                <ul class="list-group list-group-flush">
+                    {% if config.search_engines %}
+                        {% for engine in config.search_engines %}
+                        <li class="list-group-item">{{ engine }}</li>
+                        {% endfor %}
+                    {% else %}
+                        <li class="list-group-item">暂无配置</li>
+                    {% endif %}
+                </ul>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h5>默认关键词</h5>
+            </div>
+            <div class="card-body">
+                <ul class="list-group list-group-flush">
+                    {% if config.default_keywords %}
+                        {% for keyword in config.default_keywords %}
+                        <li class="list-group-item">{{ keyword }}</li>
+                        {% endfor %}
+                    {% else %}
+                        <li class="list-group-item">暂无配置</li>
+                    {% endif %}
+                </ul>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h5>调度器配置</h5>
+            </div>
+            <div class="card-body">
+                {% if config.scheduler_config %}
+                    {% for key, value in config.scheduler_config.items() %}
+                    <p><strong>{{ key }}:</strong> {{ value }}</p>
+                    {% endfor %}
+                {% else %}
+                    <p class="text-muted">暂无配置</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,105 @@
+{% extends "base.html" %}
+
+{% block title %}关键词管理 - 关键词爬虫工具{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">关键词管理</h1>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addKeywordModal">
+            <i class="bi bi-plus"></i> 添加关键词
+        </button>
+    </div>
+</div>
+
+<div class="table-responsive">
+    <table class="table table-striped">
+        <thead>
+            <tr>
+                <th>关键词</th>
+                <th>创建时间</th>
+                <th>状态</th>
+                <th>操作</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for keyword in keywords %}
+            <tr>
+                <td>{{ keyword.keyword if keyword.keyword else keyword }}</td>
+                <td>{{ keyword.created_at if keyword.created_at else '未知' }}</td>
+                <td>
+                    {% if keyword.is_active is defined %}
+                        {% if keyword.is_active %}
+                            <span class="badge bg-success">活跃</span>
+                        {% else %}
+                            <span class="badge bg-secondary">已停用</span>
+                        {% endif %}
+                    {% else %}
+                        <span class="badge bg-success">活跃</span>
+                    {% endif %}
+                </td>
+                <td>
+                    <button class="btn btn-sm btn-danger" onclick="deleteKeyword('{{ keyword.id if keyword.id else keyword }}')">删除</button>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<!-- 添加关键词模态框 -->
+<div class="modal fade" id="addKeywordModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">添加关键词</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="addKeywordForm">
+                    <div class="mb-3">
+                        <label for="keyword" class="form-label">关键词</label>
+                        <input type="text" class="form-control" id="keyword" name="keyword" required>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                <button type="button" class="btn btn-primary" onclick="addKeyword()">添加</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function addKeyword() {
+    const keyword = document.getElementById('keyword').value.trim();
+    if (!keyword) {
+        alert('请输入关键词');
+        return;
+    }
+    
+    axios.post('/api/keywords', { keyword: keyword })
+    .then(response => {
+        if (response.data.success) {
+            alert(response.data.message);
+            location.reload();
+        } else {
+            alert('添加失败: ' + response.data.message);
+        }
+    })
+    .catch(error => {
+        alert('请求失败: ' + error.message);
+    });
+}
+
+function deleteKeyword(keywordId) {
+    if (confirm('确定要删除这个关键词吗？')) {
+        // 这里需要添加删除API调用
+        alert('删除功能尚未实现');
+    }
+}
+</script>
+{% endblock %}
