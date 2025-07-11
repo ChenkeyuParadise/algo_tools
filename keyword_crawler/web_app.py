@@ -146,20 +146,64 @@ class WebApp:
             days = request.args.get('days', 7, type=int)
             return render_template('visualizations.html', days=days)
         
+        # 添加进度跟踪
+        self._chart_progress = {}
+        
         @self.app.route('/api/generate_charts')
         def generate_charts():
-            """生成图表API"""
+            """生成图表API（异步）"""
             days = request.args.get('days', 7, type=int)
+            task_id = f"chart_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
             
-            try:
-                generated_files = self.visualizer.generate_all_visualizations(days=days)
-                return jsonify({
-                    'success': True,
-                    'files': generated_files,
-                    'message': f'已生成 {len(generated_files)} 个图表'
-                })
-            except Exception as e:
-                return jsonify({'success': False, 'message': str(e)})
+            # 进度回调函数
+            def progress_callback(step, total, message):
+                self._chart_progress[task_id] = {
+                    'step': step,
+                    'total': total,
+                    'message': message,
+                    'progress': round(step / total * 100, 1)
+                }
+            
+            # 异步执行图表生成
+            def generate_charts_async():
+                try:
+                    generated_files = self.visualizer.generate_all_visualizations_async(
+                        days=days, 
+                        progress_callback=progress_callback
+                    )
+                    self._chart_progress[task_id].update({
+                        'completed': True,
+                        'success': True,
+                        'files': generated_files,
+                        'message': f'已生成 {len(generated_files)} 个图表'
+                    })
+                except Exception as e:
+                    self._chart_progress[task_id].update({
+                        'completed': True,
+                        'success': False,
+                        'message': str(e)
+                    })
+            
+            # 启动后台线程
+            import threading
+            thread = threading.Thread(target=generate_charts_async)
+            thread.daemon = True
+            thread.start()
+            
+            return jsonify({
+                'success': True,
+                'task_id': task_id,
+                'message': '图表生成任务已启动'
+            })
+        
+        @self.app.route('/api/generate_charts_progress/<task_id>')
+        def get_chart_progress(task_id):
+            """获取图表生成进度"""
+            progress = self._chart_progress.get(task_id)
+            if not progress:
+                return jsonify({'success': False, 'message': '任务不存在'})
+            
+            return jsonify({'success': True, 'progress': progress})
         
         @self.app.route('/api/search_now', methods=['POST'])
         def search_now():
@@ -686,7 +730,7 @@ function changeDays(days) {
 </script>
 {% endblock %}'''
 
-        # 可视化页面模板
+        # 可视化页面模板（优化版本）
         visualizations_template = '''{% extends "base.html" %}
 
 {% block title %}数据可视化 - 关键词爬虫工具{% endblock %}
@@ -695,33 +739,252 @@ function changeDays(days) {
 <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
     <h1 class="h2">数据可视化</h1>
     <div class="btn-toolbar mb-2 mb-md-0">
-        <button type="button" class="btn btn-primary" onclick="generateCharts()">
+        <div class="input-group" style="width: 200px;">
+            <select class="form-select" id="daysSelect">
+                <option value="7" {% if days == 7 %}selected{% endif %}>最近7天</option>
+                <option value="30" {% if days == 30 %}selected{% endif %}>最近30天</option>
+                <option value="90" {% if days == 90 %}selected{% endif %}>最近90天</option>
+            </select>
+        </div>
+        <button type="button" class="btn btn-primary ms-2" id="generateChartsBtn" onclick="generateCharts()">
             <i class="bi bi-graph-up"></i> 生成图表
         </button>
     </div>
 </div>
 
+<!-- 进度条 -->
+<div id="progressContainer" class="mb-4" style="display: none;">
+    <div class="card">
+        <div class="card-body">
+            <h6 class="card-title">正在生成图表...</h6>
+            <div class="progress mb-2">
+                <div class="progress-bar progress-bar-striped progress-bar-animated" 
+                     id="progressBar" role="progressbar" style="width: 0%"></div>
+            </div>
+            <p class="text-muted" id="progressMessage">准备中...</p>
+        </div>
+    </div>
+</div>
+
+<!-- 错误信息 -->
+<div id="errorContainer" class="mb-4" style="display: none;">
+    <div class="alert alert-danger" role="alert">
+        <i class="bi bi-exclamation-triangle"></i>
+        <span id="errorMessage"></span>
+    </div>
+</div>
+
+<!-- 图表容器 -->
 <div id="chartsContainer">
-    <p class="text-muted">点击"生成图表"按钮来创建可视化图表</p>
+    <div class="row" id="chartsList">
+        <div class="col-12 text-center text-muted py-5">
+            <i class="bi bi-bar-chart" style="font-size: 3rem;"></i>
+            <p class="mt-3">选择时间范围并点击"生成图表"按钮来创建可视化图表</p>
+            <p class="small">支持时间线图、关键词对比、引擎性能、活动热力图等多种图表类型</p>
+        </div>
+    </div>
+</div>
+
+<!-- 图表预览模态框 -->
+<div class="modal fade" id="chartModal" tabindex="-1">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="chartModalTitle">图表预览</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body text-center" id="chartModalBody">
+                <!-- 图表内容将在这里显示 -->
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">关闭</button>
+                <button type="button" class="btn btn-primary" id="downloadChartBtn">下载图表</button>
+            </div>
+        </div>
+    </div>
 </div>
 {% endblock %}
 
 {% block scripts %}
 <script>
+let currentTaskId = null;
+let progressInterval = null;
+
+const chartTypeNames = {
+    'timeline': '搜索结果时间线',
+    'keyword_comparison': '关键词对比图',
+    'engine_performance': '搜索引擎性能',
+    'activity_heatmap': '每日活动热力图',
+    'interactive_dashboard': '交互式仪表板'
+};
+
 function generateCharts() {
-    axios.get('/api/generate_charts?days={{ days }}')
+    const days = document.getElementById('daysSelect').value;
+    const generateBtn = document.getElementById('generateChartsBtn');
+    const progressContainer = document.getElementById('progressContainer');
+    const errorContainer = document.getElementById('errorContainer');
+    const chartsList = document.getElementById('chartsList');
+    
+    // 重置界面
+    generateBtn.disabled = true;
+    progressContainer.style.display = 'block';
+    errorContainer.style.display = 'none';
+    chartsList.innerHTML = '<div class="col-12 text-center text-muted py-3"><i class="bi bi-hourglass-split"></i> 正在生成图表...</div>';
+    
+    // 启动图表生成
+    axios.get(`/api/generate_charts?days=${days}`)
     .then(response => {
         if (response.data.success) {
-            alert(response.data.message);
-            // 这里可以添加显示图表的逻辑
+            currentTaskId = response.data.task_id;
+            startProgressPolling();
         } else {
-            alert('生成失败: ' + response.data.message);
+            showError(response.data.message);
         }
     })
     .catch(error => {
-        alert('请求失败: ' + error.message);
+        showError('请求失败: ' + error.message);
     });
 }
+
+function startProgressPolling() {
+    if (!currentTaskId) return;
+    
+    progressInterval = setInterval(() => {
+        axios.get(`/api/generate_charts_progress/${currentTaskId}`)
+        .then(response => {
+            if (response.data.success) {
+                const progress = response.data.progress;
+                updateProgress(progress);
+                
+                if (progress.completed) {
+                    clearInterval(progressInterval);
+                    handleCompletion(progress);
+                }
+            }
+        })
+        .catch(error => {
+            clearInterval(progressInterval);
+            showError('获取进度失败: ' + error.message);
+        });
+    }, 1000); // 每秒更新一次
+}
+
+function updateProgress(progress) {
+    const progressBar = document.getElementById('progressBar');
+    const progressMessage = document.getElementById('progressMessage');
+    
+    progressBar.style.width = progress.progress + '%';
+    progressBar.textContent = progress.progress + '%';
+    progressMessage.textContent = progress.message;
+}
+
+function handleCompletion(progress) {
+    const generateBtn = document.getElementById('generateChartsBtn');
+    const progressContainer = document.getElementById('progressContainer');
+    
+    generateBtn.disabled = false;
+    progressContainer.style.display = 'none';
+    
+    if (progress.success) {
+        displayCharts(progress.files);
+    } else {
+        showError(progress.message);
+    }
+}
+
+function displayCharts(files) {
+    const chartsList = document.getElementById('chartsList');
+    
+    if (!files || Object.keys(files).length === 0) {
+        chartsList.innerHTML = '<div class="col-12 text-center text-muted py-3">没有生成任何图表，可能是数据不足</div>';
+        return;
+    }
+    
+    let chartsHtml = '';
+    
+    for (const [type, filePath] of Object.entries(files)) {
+        const chartName = chartTypeNames[type] || type;
+        const fileName = filePath.split('/').pop();
+        const isInteractive = type === 'interactive_dashboard';
+        
+        chartsHtml += `
+            <div class="col-md-6 col-lg-4 mb-4">
+                <div class="card h-100">
+                    <div class="card-body text-center">
+                        <i class="bi bi-${getChartIcon(type)}" style="font-size: 2rem; color: #007bff;"></i>
+                        <h6 class="card-title mt-2">${chartName}</h6>
+                        <p class="card-text text-muted small">文件: ${fileName}</p>
+                        <div class="btn-group" role="group">
+                            ${isInteractive ? 
+                                `<button class="btn btn-sm btn-outline-primary" onclick="openInteractiveChart('${filePath}')">
+                                    <i class="bi bi-eye"></i> 查看
+                                </button>` :
+                                `<button class="btn btn-sm btn-outline-primary" onclick="previewChart('${chartName}', '${filePath}')">
+                                    <i class="bi bi-eye"></i> 预览
+                                </button>`
+                            }
+                            <a href="/download/${fileName}" class="btn btn-sm btn-outline-success">
+                                <i class="bi bi-download"></i> 下载
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+    
+    chartsList.innerHTML = chartsHtml;
+}
+
+function getChartIcon(type) {
+    const icons = {
+        'timeline': 'graph-up',
+        'keyword_comparison': 'bar-chart-fill',
+        'engine_performance': 'speedometer2',
+        'activity_heatmap': 'calendar-heat',
+        'interactive_dashboard': 'grid-3x3-gap'
+    };
+    return icons[type] || 'bar-chart';
+}
+
+function previewChart(chartName, filePath) {
+    const modal = new bootstrap.Modal(document.getElementById('chartModal'));
+    const modalTitle = document.getElementById('chartModalTitle');
+    const modalBody = document.getElementById('chartModalBody');
+    const downloadBtn = document.getElementById('downloadChartBtn');
+    
+    modalTitle.textContent = chartName;
+    modalBody.innerHTML = `<img src="/download/${filePath.split('/').pop()}" class="img-fluid" alt="${chartName}">`;
+    downloadBtn.onclick = () => window.open(`/download/${filePath.split('/').pop()}`, '_blank');
+    
+    modal.show();
+}
+
+function openInteractiveChart(filePath) {
+    window.open(`/download/${filePath.split('/').pop()}`, '_blank');
+}
+
+function showError(message) {
+    const generateBtn = document.getElementById('generateChartsBtn');
+    const progressContainer = document.getElementById('progressContainer');
+    const errorContainer = document.getElementById('errorContainer');
+    const errorMessage = document.getElementById('errorMessage');
+    const chartsList = document.getElementById('chartsList');
+    
+    generateBtn.disabled = false;
+    progressContainer.style.display = 'none';
+    errorContainer.style.display = 'block';
+    errorMessage.textContent = message;
+    
+    chartsList.innerHTML = '<div class="col-12 text-center text-muted py-3"><i class="bi bi-x-circle"></i> 图表生成失败</div>';
+}
+
+// 页面加载时清理之前的进度跟踪
+window.addEventListener('beforeunload', () => {
+    if (progressInterval) {
+        clearInterval(progressInterval);
+    }
+});
 </script>
 {% endblock %}'''
 
