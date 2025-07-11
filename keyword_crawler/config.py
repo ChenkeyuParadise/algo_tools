@@ -1,6 +1,13 @@
 import os
 from typing import List, Dict
 
+# 可选导入，避免依赖问题
+try:
+    import requests
+    HAS_REQUESTS = True
+except ImportError:
+    HAS_REQUESTS = False
+
 class Config:
     """爬虫配置类"""
     
