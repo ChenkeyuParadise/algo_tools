@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+
+{% block title %}页面未找到 - 关键词爬虫工具{% endblock %}
+
+{% block content %}
+<div class="text-center">
+    <h1 class="display-1">404</h1>
+    <p class="fs-3"><span class="text-danger">糟糕!</span> 页面未找到。</p>
+    <p class="lead">您要查找的页面不存在。</p>
+    <a href="{{ url_for('index') }}" class="btn btn-primary">返回首页</a>
+</div>
+{% endblock %}

@@ -1,0 +1,119 @@
+{% extends "base.html" %}
+
+{% block title %}首页 - 关键词爬虫工具{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">系统概览</h1>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <button type="button" class="btn btn-primary" onclick="searchNow()">
+            <i class="bi bi-search"></i> 立即搜索
+        </button>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-3">
+        <div class="card text-white bg-primary mb-3">
+            <div class="card-body">
+                <h5 class="card-title">总搜索结果</h5>
+                <h2>{{ summary.total_search_results or 0 }}</h2>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-white bg-success mb-3">
+            <div class="card-body">
+                <h5 class="card-title">总任务数</h5>
+                <h2>{{ summary.total_tasks or 0 }}</h2>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-white bg-info mb-3">
+            <div class="card-body">
+                <h5 class="card-title">成功率</h5>
+                <h2>{{ summary.success_rate or 0 }}%</h2>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-white bg-warning mb-3">
+            <div class="card-body">
+                <h5 class="card-title">活跃关键词</h5>
+                <h2>{{ summary.active_keywords or 0 }}</h2>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5>热门关键词</h5>
+            </div>
+            <div class="card-body">
+                <ul class="list-group list-group-flush">
+                    {% if summary.top_keywords %}
+                        {% for keyword, count in summary.top_keywords.items() %}
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                            {{ keyword }}
+                            <span class="badge bg-primary rounded-pill">{{ count }}</span>
+                        </li>
+                        {% endfor %}
+                    {% else %}
+                        <li class="list-group-item">暂无数据</li>
+                    {% endif %}
+                </ul>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5>搜索引擎性能</h5>
+            </div>
+            <div class="card-body">
+                {% if summary.engine_performance %}
+                    {% for engine, stats in summary.engine_performance.items() %}
+                    <div class="mb-3">
+                        <div class="d-flex justify-content-between">
+                            <span>{{ engine }}</span>
+                            <span>{{ stats.success_rate }}%</span>
+                        </div>
+                        <div class="progress">
+                            <div class="progress-bar" role="progressbar" style="width: {{ stats.success_rate }}%"></div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <p class="text-muted">暂无数据</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function searchNow() {
+    if (confirm('确定要立即执行搜索吗？')) {
+        axios.post('/api/search_now', {
+            keywords: [],
+            pages: 1
+        }).then(response => {
+            if (response.data.success) {
+                alert(response.data.message);
+                location.reload();
+            } else {
+                alert('搜索失败: ' + response.data.message);
+            }
+        }).catch(error => {
+            alert('请求失败: ' + error.message);
+        });
+    }
+}
+</script>
+{% endblock %}
