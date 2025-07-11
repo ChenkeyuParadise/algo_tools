@@ -431,12 +431,398 @@ function searchNow() {
 </script>
 {% endblock %}'''
         
-        # 保存模板文件
-        with open(os.path.join(templates_dir, 'base.html'), 'w', encoding='utf-8') as f:
-            f.write(base_template)
+        # 任务管理模板
+        tasks_template = '''{% extends "base.html" %}
+
+{% block title %}任务管理 - 关键词爬虫工具{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">任务管理</h1>
+</div>
+
+<div class="table-responsive">
+    <table class="table table-striped">
+        <thead>
+            <tr>
+                <th>任务ID</th>
+                <th>状态</th>
+                <th>下次执行</th>
+                <th>上次执行</th>
+                <th>操作</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for job in jobs %}
+            <tr>
+                <td>{{ job.id }}</td>
+                <td>
+                    {% if job.paused %}
+                        <span class="badge bg-warning">已暂停</span>
+                    {% else %}
+                        <span class="badge bg-success">运行中</span>
+                    {% endif %}
+                </td>
+                <td>{{ job.next_run_time or '未安排' }}</td>
+                <td>{{ job.last_run_time or '从未执行' }}</td>
+                <td>
+                    <div class="btn-group" role="group">
+                        <button class="btn btn-sm btn-primary" onclick="runTask('{{ job.id }}')">立即执行</button>
+                        {% if job.paused %}
+                            <button class="btn btn-sm btn-success" onclick="resumeTask('{{ job.id }}')">恢复</button>
+                        {% else %}
+                            <button class="btn btn-sm btn-warning" onclick="pauseTask('{{ job.id }}')">暂停</button>
+                        {% endif %}
+                    </div>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function runTask(taskId) {
+    if (confirm('确定要立即执行任务 ' + taskId + ' 吗？')) {
+        axios.post('/api/tasks/' + taskId + '/run')
+        .then(response => {
+            if (response.data.success) {
+                alert(response.data.message);
+                location.reload();
+            } else {
+                alert('操作失败: ' + response.data.message);
+            }
+        })
+        .catch(error => {
+            alert('请求失败: ' + error.message);
+        });
+    }
+}
+
+function pauseTask(taskId) {
+    if (confirm('确定要暂停任务 ' + taskId + ' 吗？')) {
+        axios.post('/api/tasks/' + taskId + '/pause')
+        .then(response => {
+            if (response.data.success) {
+                alert(response.data.message);
+                location.reload();
+            } else {
+                alert('操作失败: ' + response.data.message);
+            }
+        })
+        .catch(error => {
+            alert('请求失败: ' + error.message);
+        });
+    }
+}
+
+function resumeTask(taskId) {
+    if (confirm('确定要恢复任务 ' + taskId + ' 吗？')) {
+        axios.post('/api/tasks/' + taskId + '/resume')
+        .then(response => {
+            if (response.data.success) {
+                alert(response.data.message);
+                location.reload();
+            } else {
+                alert('操作失败: ' + response.data.message);
+            }
+        })
+        .catch(error => {
+            alert('请求失败: ' + error.message);
+        });
+    }
+}
+</script>
+{% endblock %}'''
+
+        # 关键词管理模板
+        keywords_template = '''{% extends "base.html" %}
+
+{% block title %}关键词管理 - 关键词爬虫工具{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">关键词管理</h1>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addKeywordModal">
+            <i class="bi bi-plus"></i> 添加关键词
+        </button>
+    </div>
+</div>
+
+<div class="table-responsive">
+    <table class="table table-striped">
+        <thead>
+            <tr>
+                <th>关键词</th>
+                <th>创建时间</th>
+                <th>状态</th>
+                <th>操作</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for keyword in keywords %}
+            <tr>
+                <td>{{ keyword.keyword }}</td>
+                <td>{{ keyword.created_at }}</td>
+                <td>
+                    {% if keyword.is_active %}
+                        <span class="badge bg-success">活跃</span>
+                    {% else %}
+                        <span class="badge bg-secondary">已停用</span>
+                    {% endif %}
+                </td>
+                <td>
+                    <button class="btn btn-sm btn-danger" onclick="deleteKeyword({{ keyword.id }})">删除</button>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<!-- 添加关键词模态框 -->
+<div class="modal fade" id="addKeywordModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">添加关键词</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="addKeywordForm">
+                    <div class="mb-3">
+                        <label for="keyword" class="form-label">关键词</label>
+                        <input type="text" class="form-control" id="keyword" name="keyword" required>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                <button type="button" class="btn btn-primary" onclick="addKeyword()">添加</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function addKeyword() {
+    const keyword = document.getElementById('keyword').value.trim();
+    if (!keyword) {
+        alert('请输入关键词');
+        return;
+    }
+    
+    axios.post('/api/keywords', { keyword: keyword })
+    .then(response => {
+        if (response.data.success) {
+            alert(response.data.message);
+            location.reload();
+        } else {
+            alert('添加失败: ' + response.data.message);
+        }
+    })
+    .catch(error => {
+        alert('请求失败: ' + error.message);
+    });
+}
+</script>
+{% endblock %}'''
+
+        # 统计页面模板
+        statistics_template = '''{% extends "base.html" %}
+
+{% block title %}数据统计 - 关键词爬虫工具{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">数据统计</h1>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <select class="form-select" onchange="changeDays(this.value)">
+            <option value="7" {% if days == 7 %}selected{% endif %}>最近7天</option>
+            <option value="30" {% if days == 30 %}selected{% endif %}>最近30天</option>
+            <option value="90" {% if days == 90 %}selected{% endif %}>最近90天</option>
+        </select>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5>任务统计</h5>
+            </div>
+            <div class="card-body">
+                <p>总任务数: {{ task_stats.total }}</p>
+                <p>成功任务: {{ task_stats.success }}</p>
+                <p>失败任务: {{ task_stats.failed }}</p>
+                <p>成功率: {{ task_stats.success_rate }}%</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5>搜索结果统计</h5>
+            </div>
+            <div class="card-body">
+                <p>总搜索结果: {{ results_stats.total }}</p>
+                <p>平均每天: {{ results_stats.daily_average }}</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function changeDays(days) {
+    window.location.href = '/statistics?days=' + days;
+}
+</script>
+{% endblock %}'''
+
+        # 可视化页面模板
+        visualizations_template = '''{% extends "base.html" %}
+
+{% block title %}数据可视化 - 关键词爬虫工具{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">数据可视化</h1>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <button type="button" class="btn btn-primary" onclick="generateCharts()">
+            <i class="bi bi-graph-up"></i> 生成图表
+        </button>
+    </div>
+</div>
+
+<div id="chartsContainer">
+    <p class="text-muted">点击"生成图表"按钮来创建可视化图表</p>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function generateCharts() {
+    axios.get('/api/generate_charts?days={{ days }}')
+    .then(response => {
+        if (response.data.success) {
+            alert(response.data.message);
+            // 这里可以添加显示图表的逻辑
+        } else {
+            alert('生成失败: ' + response.data.message);
+        }
+    })
+    .catch(error => {
+        alert('请求失败: ' + error.message);
+    });
+}
+</script>
+{% endblock %}'''
+
+        # 配置页面模板
+        config_template = '''{% extends "base.html" %}
+
+{% block title %}配置 - 关键词爬虫工具{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">系统配置</h1>
+</div>
+
+<div class="row">
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h5>搜索引擎</h5>
+            </div>
+            <div class="card-body">
+                <ul class="list-group list-group-flush">
+                    {% for engine in config.search_engines %}
+                    <li class="list-group-item">{{ engine }}</li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h5>默认关键词</h5>
+            </div>
+            <div class="card-body">
+                <ul class="list-group list-group-flush">
+                    {% for keyword in config.default_keywords %}
+                    <li class="list-group-item">{{ keyword }}</li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h5>调度器配置</h5>
+            </div>
+            <div class="card-body">
+                {% for key, value in config.scheduler_config.items() %}
+                <p><strong>{{ key }}:</strong> {{ value }}</p>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}'''
+
+        # 404错误页面模板
+        error_404_template = '''{% extends "base.html" %}
+
+{% block title %}页面未找到 - 关键词爬虫工具{% endblock %}
+
+{% block content %}
+<div class="text-center">
+    <h1 class="display-1">404</h1>
+    <p class="fs-3"><span class="text-danger">糟糕!</span> 页面未找到。</p>
+    <p class="lead">您要查找的页面不存在。</p>
+    <a href="{{ url_for('index') }}" class="btn btn-primary">返回首页</a>
+</div>
+{% endblock %}'''
+
+        # 500错误页面模板
+        error_500_template = '''{% extends "base.html" %}
+
+{% block title %}服务器错误 - 关键词爬虫工具{% endblock %}
+
+{% block content %}
+<div class="text-center">
+    <h1 class="display-1">500</h1>
+    <p class="fs-3"><span class="text-danger">糟糕!</span> 服务器内部错误。</p>
+    <p class="lead">服务器遇到了一个意外的错误。</p>
+    <a href="{{ url_for('index') }}" class="btn btn-primary">返回首页</a>
+</div>
+{% endblock %}'''
+
+        # 保存所有模板文件
+        templates = {
+            'base.html': base_template,
+            'index.html': index_template,
+            'tasks.html': tasks_template,
+            'keywords.html': keywords_template,
+            'statistics.html': statistics_template,
+            'visualizations.html': visualizations_template,
+            'config.html': config_template,
+            '404.html': error_404_template,
+            '500.html': error_500_template
+        }
         
-        with open(os.path.join(templates_dir, 'index.html'), 'w', encoding='utf-8') as f:
-            f.write(index_template)
+        for filename, content in templates.items():
+            with open(os.path.join(templates_dir, filename), 'w', encoding='utf-8') as f:
+                f.write(content)
     
     def run(self, host=None, port=None, debug=None):
         """运行Web应用"""
