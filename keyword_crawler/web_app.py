@@ -14,6 +14,9 @@ class WebApp:
     """Web应用类"""
     
     def __init__(self):
+        # 确保静态文件和模板目录存在
+        self._ensure_directories()
+        
         self.app = Flask(__name__, template_folder='templates', static_folder='static')
         self.app.secret_key = 'keyword_crawler_secret_key'
         
@@ -29,6 +32,33 @@ class WebApp:
         # 启动调度器
         self.scheduler.setup_default_jobs()
         self.scheduler.start()
+    
+    def _ensure_directories(self):
+        """确保必要的目录和文件存在"""
+        # 获取当前文件所在目录
+        base_dir = os.path.dirname(__file__)
+        
+        # 创建static和templates目录
+        static_dir = os.path.join(base_dir, 'static')
+        templates_dir = os.path.join(base_dir, 'templates')
+        
+        os.makedirs(static_dir, exist_ok=True)
+        os.makedirs(templates_dir, exist_ok=True)
+        
+        # 创建favicon.ico文件（如果不存在）
+        favicon_path = os.path.join(static_dir, 'favicon.ico')
+        if not os.path.exists(favicon_path):
+            try:
+                # 创建一个简单的16x16透明favicon
+                import base64
+                favicon_data = base64.b64decode(
+                    b'AAABAAEAEBAAAAEAIABoBAAAFgAAACgAAAAQAAAAIAAAAAEAIAAAAAAAAAQAABILAAASCwAAAAAAAAAAAAD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=='
+                )
+                with open(favicon_path, 'wb') as f:
+                    f.write(favicon_data)
+            except Exception as e:
+                # If favicon creation fails, just log the error
+                print(f"Warning: Could not create favicon.ico: {e}")
     
     def _register_routes(self):
         """注册Flask路由"""
@@ -166,6 +196,21 @@ class WebApp:
             days = request.args.get('days', 7, type=int)
             summary = self.visualizer.generate_summary_report(days=days)
             return jsonify(summary)
+        
+        @self.app.route('/favicon.ico')
+        def favicon():
+            """网站图标"""
+            try:
+                favicon_path = os.path.join(self.app.static_folder, 'favicon.ico')
+                if os.path.exists(favicon_path):
+                    return send_file(favicon_path, mimetype='image/vnd.microsoft.icon')
+                else:
+                    # Return a 204 No Content response if favicon doesn't exist
+                    return '', 204
+            except Exception as e:
+                # Log error and return empty response to prevent 500 error
+                self.app.logger.warning(f"Error serving favicon: {e}")
+                return '', 204
         
         @self.app.route('/download/<path:filename>')
         def download_file(filename):
