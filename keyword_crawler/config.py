@@ -84,10 +84,31 @@ class Config:
     
     # 可视化配置
     VISUALIZATION_CONFIG = {
-        "figure_size": (12, 8),
-        "dpi": 300,
-        "style": "whitegrid",
-        "color_palette": "Set2"
+        'style': 'whitegrid',
+        'color_palette': 'Set2',
+        'figure_size': (12, 8),
+        'dpi': 100,
+        
+        # 性能优化配置
+        'enable_cache': True,
+        'cache_timeout': 300,  # 5分钟缓存
+        'max_workers': 6,  # 最大线程数
+        'enable_parallel': True,  # 启用并行生成
+        'optimize_plots': True,  # 启用图表优化
+        
+        # matplotlib性能优化
+        'matplotlib_backend': 'Agg',  # 非交互式后端
+        'max_open_warning': 50,
+        'path_chunksize': 10000,
+        
+        # 图表质量设置
+        'high_quality_mode': False,  # 高质量模式（较慢）
+        'enable_antialiasing': True,
+        'compress_images': True,
+        
+        # 仪表板配置
+        'dashboard_use_cdn': True,  # 使用CDN减少文件大小
+        'dashboard_minimal_mode': True,  # 最小化模式
     }
     
     @classmethod
