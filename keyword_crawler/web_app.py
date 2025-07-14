@@ -151,8 +151,9 @@ class WebApp:
         
         @self.app.route('/api/generate_charts')
         def generate_charts():
-            """生成图表API（异步）"""
+            """生成图表API（异步优化版本）"""
             days = request.args.get('days', 7, type=int)
+            use_optimized = request.args.get('optimized', True, type=bool)
             task_id = f"chart_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
             
             # 进度回调函数
@@ -161,27 +162,51 @@ class WebApp:
                     'step': step,
                     'total': total,
                     'message': message,
-                    'progress': round(step / total * 100, 1)
+                    'progress': round(step / total * 100, 1),
+                    'timestamp': datetime.now().isoformat()
                 }
             
             # 异步执行图表生成
             def generate_charts_async():
+                import time
+                start_time = time.time()
+                
                 try:
+                    # 使用优化的异步方法
                     generated_files = self.visualizer.generate_all_visualizations_async(
                         days=days, 
                         progress_callback=progress_callback
                     )
+                    
+                    generation_time = time.time() - start_time
+                    
+                    # 获取性能统计
+                    try:
+                        perf_stats = self.visualizer.get_performance_stats()
+                    except AttributeError:
+                        perf_stats = {}
+                    
                     self._chart_progress[task_id].update({
                         'completed': True,
                         'success': True,
                         'files': generated_files,
-                        'message': f'已生成 {len(generated_files)} 个图表'
+                        'generation_time': round(generation_time, 2),
+                        'performance_stats': perf_stats,
+                        'message': f'已生成 {len(generated_files)} 个图表，用时 {generation_time:.2f}秒'
                     })
+                    
                 except Exception as e:
+                    import traceback
+                    error_details = {
+                        'error': str(e),
+                        'traceback': traceback.format_exc()
+                    }
+                    
                     self._chart_progress[task_id].update({
                         'completed': True,
                         'success': False,
-                        'message': str(e)
+                        'message': f'生成失败: {str(e)}',
+                        'error_details': error_details
                     })
             
             # 启动后台线程
@@ -193,7 +218,8 @@ class WebApp:
             return jsonify({
                 'success': True,
                 'task_id': task_id,
-                'message': '图表生成任务已启动'
+                'optimized': use_optimized,
+                'message': '图表生成任务已启动（优化模式）' if use_optimized else '图表生成任务已启动'
             })
         
         @self.app.route('/api/generate_charts_progress/<task_id>')
